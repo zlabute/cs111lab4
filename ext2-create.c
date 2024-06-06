@@ -211,18 +211,18 @@ void write_superblock(int fd) {
 	superblock.s_inodes_per_group  = NUM_INODES; // GOOD
 	superblock.s_mtime             = 0;				/* Mount time */ // GOOD
 	superblock.s_wtime             = current_time;	/* Write time */ // GOOD
-	superblock.s_mnt_count         = 0; /* Number of times mounted so far */
-	superblock.s_max_mnt_count     = 0; /* Make this unlimited */
-	superblock.s_magic             = -1; /* ext2 Signature */
-	superblock.s_state             = 0; /* File system is clean */
-	superblock.s_errors            = 0; /* Ignore the error (continue on) */
+	superblock.s_mnt_count         = 0; /* Number of times mounted so far */ // GOOD
+	superblock.s_max_mnt_count     = -1; /* Make this unlimited */ // GOOD
+	superblock.s_magic             = 0xEF53; /* ext2 Signature */ // GOOD
+	superblock.s_state             = 1; /* File system is clean */ // GOOD
+	superblock.s_errors            = 1; /* Ignore the error (continue on) */ // GOOD
 	superblock.s_minor_rev_level   = 0; /* Leave this as 0 */
-	superblock.s_lastcheck = current_time; /* Last check time */
-	superblock.s_checkinterval     = 0; /* Force checks by making them every 1 second */
-	superblock.s_creator_os        = 0; /* Linux */
-	superblock.s_rev_level         = 0; /* Leave this as 0 */
-	superblock.s_def_resuid        = 0; /* root */
-	superblock.s_def_resgid        = 0; /* root */
+	superblock.s_lastcheck         = current_time; /* Last check time */
+	superblock.s_checkinterval     = 1; /* Force checks by making them every 1 second */ // GOOD
+	superblock.s_creator_os        = 0; /* Linux */ // GOOD
+	superblock.s_rev_level         = 0; /* Leave this as 0 */ // GOOD
+	superblock.s_def_resuid        = 0; /* root */ // GOOD
+	superblock.s_def_resgid        = 0; /* root */ // GOOD
 
 	/* You can leave everything below this line the same, delete this
 	   comment when you're done the lab */
@@ -261,17 +261,24 @@ void write_block_group_descriptor_table(int fd) {
 
 	// TODO It's all yours
 	// TODO finish the block group descriptor number setting
-	block_group_descriptor.bg_block_bitmap = -1;
-	block_group_descriptor.bg_inode_bitmap = -1;
-	block_group_descriptor.bg_inode_table = -1;
-	block_group_descriptor.bg_free_blocks_count = -1;
-	block_group_descriptor.bg_free_inodes_count = -1;
-	block_group_descriptor.bg_used_dirs_count = -1;
+	block_group_descriptor.bg_block_bitmap = BLOCK_BITMAP_BLOCKNO; // GOOD
+	block_group_descriptor.bg_inode_bitmap = INODE_BITMAP_BLOCKNO; //GOOD
+	block_group_descriptor.bg_inode_table = INODE_TABLE_BLOCKNO; // GOOD
+	block_group_descriptor.bg_free_blocks_count = NUM_FREE_BLOCKS; // GOOD
+	block_group_descriptor.bg_free_inodes_count = NUM_FREE_INODES; // GOOD
+	block_group_descriptor.bg_used_dirs_count = 2; 
 
 	ssize_t size = sizeof(block_group_descriptor);
 	if (write(fd, &block_group_descriptor, size) != size) {
 		errno_exit("write");
 	}
+}
+
+void write_bit_byte ( u8 *map_value, u32 n )
+{
+	u32 byte_num = (n - 1) / 8;
+	u32 bit_num = (n - 1) % 8;
+	map_value[byte_num] |= (1 << bit_num);
 }
 
 void write_block_bitmap(int fd)
@@ -283,9 +290,22 @@ void write_block_bitmap(int fd)
 	}
 
 	// TODO It's all yours
-	u8 map_value[BLOCK_SIZE];
+	u8 map_value[BLOCK_SIZE] = {0x00}; // creates a map of bits array of size 128 bytes
 
-	if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
+	for (u32 i =1; i < LAST_BLOCK + 1; i++) //iterate through every value of the map and write the byte key and bit value for the map
+	{
+		write_bit_byte(map_value, i); 
+	}
+
+	for (u32 i = NUM_INODES * 8; i <= NUM_BLOCKS * 8; i++) // iterate through first allocated block
+	{
+		write_bit_byte(map_value, i);
+	}
+
+
+	ssize_t size = sizeof(map_value); // write the map_value to file descriptor
+
+	if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) 
 	{
 		errno_exit("write");
 	}
@@ -300,17 +320,29 @@ void write_inode_bitmap(int fd)
 	}
 
 	// TODO It's all yours
-	u8 map_value[BLOCK_SIZE];
+	u8 map_value[BLOCK_SIZE] = {0x00}; // make another array of 128 bytes
 
-	if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
+	for (u32 i = 1; i < LAST_INO + 1; i++)
+	{
+		write_bit_byte(map_value,i);
+	}
+
+	for (u32 i = NUM_INODES + 1; i <= NUM_BLOCKS * 8; i++)
+	{
+		write_bit_byte(map_value,i);
+	}
+
+
+	ssize_t size = sizeof(map_value);
+
+	if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) // write the map_value array to file descriptor 
 	{
 		errno_exit("write");
 	}
 }
 
 void write_inode(int fd, u32 index, struct ext2_inode *inode) {
-	off_t off = BLOCK_OFFSET(INODE_TABLE_BLOCKNO)
-	            + (index - 1) * sizeof(struct ext2_inode);
+	off_t off = BLOCK_OFFSET(INODE_TABLE_BLOCKNO) + (index - 1) * sizeof(struct ext2_inode);
 	off = lseek(fd, off, SEEK_SET);
 	if (off == -1) {
 		errno_exit("lseek");
@@ -348,6 +380,8 @@ void write_inode_table(int fd) {
 
 	// TODO It's all yours
 	// TODO finish the inode entries for the other files
+	struct ext2_inode hello_world_inode = {0};
+	hello_world_inode.i_mode = EXT2_S_IFREG | EXT2_S_ISUR | EXT
 }
 
 void write_root_dir_block(int fd)
