@@ -266,7 +266,7 @@ void write_block_bitmap(int fd) {
 
     ssize_t size = sizeof(map_value); // write the map_value to file descriptor
 
-    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) {
+    if (write(fd, map_value, size) != BLOCK_SIZE) {
         errno_exit("write");
     }
 }
@@ -285,7 +285,7 @@ void write_inode_bitmap(int fd) {
 
     ssize_t size = sizeof(map_value);
 
-    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) { // write the map_value array to file descriptor 
+    if (write(fd, map_value, size) != BLOCK_SIZE) { // write the map_value array to file descriptor 
         errno_exit("write");
     }
 }
