@@ -149,25 +149,30 @@ struct ext2_dir_entry {
 };
 
 #define errno_exit(str)                                                        \
-    do { int err = errno; perror(str); exit(err); } while (0)
+	do { int err = errno; perror(str); exit(err); } while (0)
 
 #define dir_entry_set(entry, inode_num, str)                                   \
-    do {                                                                       \
-        const char *s = str;                                                   \
-        size_t len = strlen(s);                                                \
-        entry.inode = inode_num;                                               \
-        entry.name_len = len;                                                  \
-        memcpy(&entry.name, s, len);                                           \
-        entry.rec_len = 8 + len + (4 - len % 4) % 4;                           \
-    } while (0)
+	do {                                                                   \
+		char *s = str;                                                 \
+		size_t len = strlen(s);                                        \
+		entry.inode = inode_num;                                       \
+		entry.name_len = len;                                          \
+		memcpy(&entry.name, s, len);                                   \
+		if ((len % 4) != 0) {                                          \
+			entry.rec_len = 12 + len / 4 * 4;                      \
+		}                                                              \
+		else {                                                         \
+			entry.rec_len = 8 + len;                               \
+		}                                                              \
+	} while (0)
 
 #define dir_entry_write(entry, fd)                                             \
-    do {                                                                       \
-        size_t size = entry.rec_len;                                           \
-        if (write(fd, &entry, size) != size) {                                 \
-            errno_exit("write");                                               \
-        }                                                                      \
-    } while (0)
+	do {                                                                   \
+		size_t size = entry.rec_len;                                   \
+		if (write(fd, &entry, size) != size) {                         \
+			errno_exit("write");                                   \
+		}                                                              \
+	} while (0)
 
 u32 get_current_time() {
     time_t t = time(NULL);
