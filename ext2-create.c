@@ -252,6 +252,16 @@ void write_bit_byte(u8 *map_value, u32 n) {
     map_value[byte_num] |= (1 << bit_num);
 }
 
+void set_padding_bits(u8 *map_value, u32 total_bits) {
+    u32 total_bytes = (total_bits + 7) / 8;  // total bytes required for total_bits
+    u32 used_bits = total_bits % 8;          // bits used in the last byte
+
+    if (used_bits != 0) {
+        u8 mask = (1 << (8 - used_bits)) - 1;  // mask for the unused bits
+        map_value[total_bytes - 1] |= mask;
+    }
+}
+
 void write_block_bitmap(int fd) {
     off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
     if (off == -1) {
@@ -264,9 +274,9 @@ void write_block_bitmap(int fd) {
         write_bit_byte(map_value, i);
     }
 
-    ssize_t size = sizeof(map_value); // write the map_value to file descriptor
+    set_padding_bits(map_value, NUM_BLOCKS);
 
-    if (write(fd, map_value, size) != BLOCK_SIZE) {
+    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) {
         errno_exit("write");
     }
 }
@@ -283,12 +293,13 @@ void write_inode_bitmap(int fd) {
         write_bit_byte(map_value, i);
     }
 
-    ssize_t size = sizeof(map_value);
+    set_padding_bits(map_value, NUM_INODES);
 
-    if (write(fd, map_value, size) != BLOCK_SIZE) { // write the map_value array to file descriptor 
+    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) { // write the map_value array to file descriptor 
         errno_exit("write");
     }
 }
+
 
 void write_inode(int fd, u32 index, struct ext2_inode *inode) {
     off_t off = BLOCK_OFFSET(INODE_TABLE_BLOCKNO) + (index - 1) * sizeof(struct ext2_inode);
@@ -364,11 +375,12 @@ void write_inode_table(int fd) {
     root_inode.i_mtime = current_time;
     root_inode.i_dtime = 0;
     root_inode.i_gid = 0;
-    root_inode.i_links_count = 2;
+    root_inode.i_links_count = 3;  // Set reference count to 3
     root_inode.i_blocks = 2;
     root_inode.i_block[0] = ROOT_DIR_BLOCKNO;
     write_inode(fd, EXT2_ROOT_INO, &root_inode);
 }
+
 
 void write_root_dir_block(int fd) {
     off_t off = lseek(fd, BLOCK_OFFSET(ROOT_DIR_BLOCKNO), SEEK_SET);
