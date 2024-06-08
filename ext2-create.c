@@ -195,8 +195,8 @@ void write_superblock(int fd) {
     superblock.s_first_data_block  = SUPERBLOCK_BLOCKNO;
     superblock.s_log_block_size    = 0;
     superblock.s_log_frag_size     = 0;
-    superblock.s_blocks_per_group  = NUM_BLOCKS;
-    superblock.s_frags_per_group   = NUM_BLOCKS;
+    superblock.s_blocks_per_group  = NUM_BLOCKS * 8;
+    superblock.s_frags_per_group   = NUM_BLOCKS * 8;
     superblock.s_inodes_per_group  = NUM_INODES;
     superblock.s_mtime             = 0;
     superblock.s_wtime             = current_time;
