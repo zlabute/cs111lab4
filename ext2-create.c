@@ -40,9 +40,6 @@ typedef int32_t i32;
 
 #define EXT2_SUPER_MAGIC 0xEF53
 
-/* http://www.nongnu.org/ext2-doc/ext2.html */
-/* http://www.science.smith.edu/~nhowe/262/oldlabs/ext2.html */
-
 #define EXT2_BAD_INO             1
 #define EXT2_ROOT_INO            2
 #define EXT2_GOOD_OLD_FIRST_INO  11
@@ -190,31 +187,31 @@ void write_superblock(int fd) {
 
     struct ext2_superblock superblock = {0};
 
-    superblock.s_inodes_count      = NUM_INODES;  // GOOD
-    superblock.s_blocks_count      = NUM_BLOCKS;  // GOOD
-    superblock.s_r_blocks_count    = 0; // reserved blocks // GOOD
-    superblock.s_free_blocks_count = NUM_FREE_BLOCKS; // GOOD
-    superblock.s_free_inodes_count = NUM_FREE_INODES; // GOOD
-    superblock.s_first_data_block  = SUPERBLOCK_BLOCKNO; /* First Data Block */ // GOOD
-    superblock.s_log_block_size    = 0;                 /* 1024 */ // GOOD
-    superblock.s_log_frag_size     = 0;                 /* 1024 */ // GOOD
-    superblock.s_blocks_per_group  = NUM_BLOCKS; // GOOD
-    superblock.s_frags_per_group   = NUM_BLOCKS; // GOOD
-    superblock.s_inodes_per_group  = NUM_INODES; // GOOD
-    superblock.s_mtime             = 0;                 /* Mount time */ // GOOD
-    superblock.s_wtime             = current_time;      /* Write time */ // GOOD
-    superblock.s_mnt_count         = 0; /* Number of times mounted so far */ // GOOD
-    superblock.s_max_mnt_count     = -1; /* Make this unlimited */ // GOOD
-    superblock.s_magic             = 0xEF53; /* ext2 Signature */ // GOOD
-    superblock.s_state             = 1; /* File system is clean */ // GOOD
-    superblock.s_errors            = 1; /* Ignore the error (continue on) */ // GOOD
-    superblock.s_minor_rev_level   = 0; /* Leave this as 0 */
-    superblock.s_lastcheck         = current_time; /* Last check time */
-    superblock.s_checkinterval     = 1; /* Force checks by making them every 1 second */ // GOOD
-    superblock.s_creator_os        = 0; /* Linux */ // GOOD
-    superblock.s_rev_level         = 0; /* Leave this as 0 */ // GOOD
-    superblock.s_def_resuid        = 0; /* root */ // GOOD
-    superblock.s_def_resgid        = 0; /* root */ // GOOD
+    superblock.s_inodes_count      = NUM_INODES;
+    superblock.s_blocks_count      = NUM_BLOCKS;
+    superblock.s_r_blocks_count    = 0;
+    superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
+    superblock.s_free_inodes_count = NUM_FREE_INODES;
+    superblock.s_first_data_block  = SUPERBLOCK_BLOCKNO;
+    superblock.s_log_block_size    = 0;
+    superblock.s_log_frag_size     = 0;
+    superblock.s_blocks_per_group  = NUM_BLOCKS;
+    superblock.s_frags_per_group   = NUM_BLOCKS;
+    superblock.s_inodes_per_group  = NUM_INODES;
+    superblock.s_mtime             = 0;
+    superblock.s_wtime             = current_time;
+    superblock.s_mnt_count         = 0;
+    superblock.s_max_mnt_count     = -1;
+    superblock.s_magic             = 0xEF53;
+    superblock.s_state             = 1;
+    superblock.s_errors            = 1;
+    superblock.s_minor_rev_level   = 0;
+    superblock.s_lastcheck         = current_time;
+    superblock.s_checkinterval     = 1;
+    superblock.s_creator_os        = 0;
+    superblock.s_rev_level         = 0;
+    superblock.s_def_resuid        = 0;
+    superblock.s_def_resgid        = 0;
 
     memcpy(&superblock.s_uuid, "\x5A\x1E\xAB\x1E\x13\x37\x13\x37\x13\x37\xC0\xFF\xEE\xC0\xFF\xEE", 16);
     memcpy(&superblock.s_volume_name, "cs111-base", 10);
@@ -233,12 +230,12 @@ void write_block_group_descriptor_table(int fd) {
 
     struct ext2_block_group_descriptor block_group_descriptor = {0};
 
-    block_group_descriptor.bg_block_bitmap = BLOCK_BITMAP_BLOCKNO; // GOOD
-    block_group_descriptor.bg_inode_bitmap = INODE_BITMAP_BLOCKNO; // GOOD
-    block_group_descriptor.bg_inode_table = INODE_TABLE_BLOCKNO; // GOOD
-    block_group_descriptor.bg_free_blocks_count = NUM_FREE_BLOCKS; // GOOD
-    block_group_descriptor.bg_free_inodes_count = NUM_FREE_INODES; // GOOD
-    block_group_descriptor.bg_used_dirs_count = 2; // GOOD
+    block_group_descriptor.bg_block_bitmap = BLOCK_BITMAP_BLOCKNO;
+    block_group_descriptor.bg_inode_bitmap = INODE_BITMAP_BLOCKNO;
+    block_group_descriptor.bg_inode_table = INODE_TABLE_BLOCKNO;
+    block_group_descriptor.bg_free_blocks_count = NUM_FREE_BLOCKS;
+    block_group_descriptor.bg_free_inodes_count = NUM_FREE_INODES;
+    block_group_descriptor.bg_used_dirs_count = 2;
 
     ssize_t size = sizeof(block_group_descriptor);
     if (write(fd, &block_group_descriptor, size) != size) {
@@ -257,7 +254,7 @@ void set_padding_bits(u8 *map_value, u32 total_bits) {
     u32 used_bits = total_bits % 8;          // bits used in the last byte
 
     if (used_bits != 0) {
-        u8 mask = (1 << (8 - used_bits)) - 1;  // mask for the unused bits
+        u8 mask = 0xFF << used_bits;  // mask for the unused bits
         map_value[total_bytes - 1] |= mask;
     }
 }
@@ -268,7 +265,7 @@ void write_block_bitmap(int fd) {
         errno_exit("lseek");
     }
 
-    u8 map_value[BLOCK_SIZE] = {0x00}; // creates a map of bits array of size 128 bytes
+    u8 map_value[BLOCK_SIZE] = {0x00};
 
     for (u32 i = 1; i <= LAST_BLOCK; i++) {
         write_bit_byte(map_value, i);
@@ -287,7 +284,7 @@ void write_inode_bitmap(int fd) {
         errno_exit("lseek");
     }
 
-    u8 map_value[BLOCK_SIZE] = {0x00}; // make another array of 128 bytes
+    u8 map_value[BLOCK_SIZE] = {0x00};
 
     for (u32 i = 1; i <= LAST_INO; i++) {
         write_bit_byte(map_value, i);
@@ -295,11 +292,10 @@ void write_inode_bitmap(int fd) {
 
     set_padding_bits(map_value, NUM_INODES);
 
-    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) { // write the map_value array to file descriptor 
+    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) {
         errno_exit("write");
     }
 }
-
 
 void write_inode(int fd, u32 index, struct ext2_inode *inode) {
     off_t off = BLOCK_OFFSET(INODE_TABLE_BLOCKNO) + (index - 1) * sizeof(struct ext2_inode);
@@ -334,7 +330,7 @@ void write_inode_table(int fd) {
     lost_and_found_inode.i_dtime = 0;
     lost_and_found_inode.i_gid = 0;
     lost_and_found_inode.i_links_count = 2;
-    lost_and_found_inode.i_blocks = 2; /* These are oddly 512 blocks */
+    lost_and_found_inode.i_blocks = 2;
     lost_and_found_inode.i_block[0] = LOST_AND_FOUND_DIR_BLOCKNO;
     write_inode(fd, LOST_AND_FOUND_INO, &lost_and_found_inode);
 
@@ -347,15 +343,15 @@ void write_inode_table(int fd) {
     hello_world_inode.i_mtime      = current_time;
     hello_world_inode.i_dtime      = 0;
     hello_world_inode.i_gid        = 1000;
-    hello_world_inode.i_links_count = 1; 
-    hello_world_inode.i_blocks     = 2; 
+    hello_world_inode.i_links_count = 1;
+    hello_world_inode.i_blocks     = 2;
     hello_world_inode.i_block[0]   = HELLO_WORLD_FILE_BLOCKNO;
     write_inode(fd, HELLO_WORLD_INO, &hello_world_inode);
 
     struct ext2_inode hello_inode = {0};
     hello_inode.i_mode = EXT2_S_IFLNK | EXT2_S_IRUSR | EXT2_S_IWUSR | EXT2_S_IRGRP | EXT2_S_IROTH;
     hello_inode.i_uid = 1000;
-    hello_inode.i_atime = current_time; 
+    hello_inode.i_atime = current_time;
     hello_inode.i_ctime = current_time;
     hello_inode.i_mtime = current_time;
     hello_inode.i_dtime = 0;
@@ -375,12 +371,11 @@ void write_inode_table(int fd) {
     root_inode.i_mtime = current_time;
     root_inode.i_dtime = 0;
     root_inode.i_gid = 0;
-    root_inode.i_links_count = 3;  // Set reference count to 3
+    root_inode.i_links_count = 3;
     root_inode.i_blocks = 2;
     root_inode.i_block[0] = ROOT_DIR_BLOCKNO;
     write_inode(fd, EXT2_ROOT_INO, &root_inode);
 }
-
 
 void write_root_dir_block(int fd) {
     off_t off = lseek(fd, BLOCK_OFFSET(ROOT_DIR_BLOCKNO), SEEK_SET);
