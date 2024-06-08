@@ -178,7 +178,7 @@ u32 get_current_time() {
 }
 
 void write_superblock(int fd) {
-    off_t off = lseek(fd, BLOCK_OFFSET(1), SEEK_SET);
+    off_t off = lseek(fd, BLOCK_OFFSET(SUPERBLOCK_BLOCKNO), SEEK_SET);
     if (off == -1) {
         errno_exit("lseek");
     }
@@ -249,15 +249,6 @@ void write_bit_byte(u8 *map_value, u32 n) {
     map_value[byte_num] |= (1 << bit_num);
 }
 
-void set_padding_bits(u8 *map_value, u32 total_bits) {
-    u32 total_bytes = (total_bits + 7) / 8;  // total bytes required for total_bits
-    u32 used_bits = total_bits % 8;          // bits used in the last byte
-
-    if (used_bits != 0) {
-        u8 mask = 0xFF << used_bits;  // mask for the unused bits
-        map_value[total_bytes - 1] |= mask;
-    }
-}
 
 void write_block_bitmap(int fd) {
     off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
@@ -271,9 +262,14 @@ void write_block_bitmap(int fd) {
         write_bit_byte(map_value, i);
     }
 
-    set_padding_bits(map_value, NUM_BLOCKS);
+    // Clear the bits for blocks after the valid range
+    for (u32 i = NUM_INODES * 8; i <= NUM_BLOCKS * 8; i++) {
+        write_bit_byte(map_value, i);
+    }
 
-    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) {
+    ssize_t size = sizeof(map_value);
+
+    if (write(fd, map_value, size) != BLOCK_SIZE) {
         errno_exit("write");
     }
 }
@@ -290,9 +286,14 @@ void write_inode_bitmap(int fd) {
         write_bit_byte(map_value, i);
     }
 
-    set_padding_bits(map_value, NUM_INODES);
+    // Clear the bits for inodes after the valid range
+    for (u32 i = NUM_INODES + 1; i <= BLOCK_SIZE * 8; i++) {
+        write_bit_byte(map_value, i);
+    }
 
-    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE) {
+    ssize_t size = sizeof(map_value);
+
+    if (write(fd, map_value, size) != BLOCK_SIZE) {
         errno_exit("write");
     }
 }
